@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Générateur de mot gratuit</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    margin:0;
+    font-family:'Segoe UI', sans-serif;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1c1c1c);
+    background-size:400% 400%;
+    animation:gradientMove 12s ease infinite;
+    color:white;
+    overflow:hidden;
+}
+@keyframes gradientMove{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.screen{position:absolute;width:100%;height:100%;display:flex;justify-content:center;align-items:center;transition:0.6s;}
+.hidden{opacity:0;pointer-events:none;transform:scale(1.1);}
+.card{background: rgba(255,255,255,0.08);backdrop-filter: blur(15px);border: 2px solid #ff9a9e;box-shadow: 0 0 20px rgba(255,154,158,0.6);padding: 40px;border-radius: 20px;text-align:center;width:95%;max-width:700px;position:relative;}
+h1{margin-bottom:20px;white-space: nowrap;}
+p{opacity:0.8;margin-bottom:30px;}
+button{padding:14px 25px;border-radius:10px;border:none;font-size:16px;cursor:pointer;transition:0.3s;font-weight:bold;}
+button:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,0.4);}
+.main-btn{background: linear-gradient(135deg, #00c6ff, #0072ff); color:white;}
+.secondary-btn, .home-btn, .hist-btn{background: linear-gradient(135deg, #ff9a9e, #fad0c4); color:black;}
+#mot{font-size:45px;margin:30px 0;font-weight:bold;letter-spacing:2px;opacity:0;transform:scale(0.6);transition:0.4s ease;text-shadow:2px 2px 10px rgba(255,154,158,0.6);}
+.show{opacity:1 !important;transform:scale(1) !important;}
+#notifications{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column-reverse;gap:10px;}
+.notification{padding:14px 20px;border-radius:10px;font-weight:bold;color:black;animation:slideIn 0.3s ease;min-width:220px;}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px);} to{opacity:1;transform:translateX(0);}}
+.fadeOut{animation:fadeOut 0.5s forwards;}
+@keyframes fadeOut{to{opacity:0;transform:translateX(30px);}}
+.flex-row{display:flex;gap:5px;}
+.flex-row button{flex:1;margin:5px 0;}
+#listeHistorique p{display:flex;justify-content:space-between;align-items:center;margin:5px 0;}
+.delete-btn{background:#ff4c4c;color:white;padding:2px 6px;border-radius:5px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="menu" class="screen">
+    <div class="card">
+        <h1>🌟 Générateur de mot gratuit 🌟</h1>
+        <p>Crée des mots aléatoires instantanément.</p>
+        <button class="main-btn" onclick="ouvrirApp()">Entrer dans le générateur →</button>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="screen hidden">
+    <div class="card">
+        <h1>🎲 Générateur 🎲</h1>
+
+        <button id="btnGenerer" class="main-btn" style="width:100%;" onclick="genererMot()">Générer</button>
+
+        <div class="flex-row">
+            <button id="btnHistorique" class="hist-btn" onclick="ouvrirHistorique()">Historique</button>
+            <button id="btnHome" class="home-btn" onclick="retourMenu()">Home</button>
+            <button id="btnCopier" class="secondary-btn" onclick="copierMot()">Copier</button>
+        </div>
+
+        <div id="mot"></div>
+    </div>
+</div>
+
+<!-- HISTORIQUE -->
+<div id="historiqueScreen" class="screen hidden">
+    <div class="card">
+        <h1>📜 Historique des mots</h1>
+        <div id="listeHistorique" style="margin:20px 0;max-height:300px;overflow-y:auto;text-align:left;"></div>
+        <button class="main-btn" onclick="viderHistorique()">Vider l'historique</button>
+        <button class="main-btn" onclick="retourGenerateur()">Retour au générateur →</button>
+    </div>
+</div>
+
+<div id="notifications"></div>
+
+<script>
+// Liste de mots fréquents
+const listeMotsFrancais = [
+"chat","chien","maison","école","voiture","arbre","fleur","soleil","lune","ciel",
+"eau","mer","montagne","ville","rue","ami","famille","enfant","homme","femme",
+"grand","petit","beau","joli","nouveau","ancien","rapide","lent","chaud","froid",
+"manger","boire","aller","venir","faire","dire","voir","entendre","parler","jouer",
+"aimer","détester","penser","savoir","connaître","comprendre","attendre","donner","prendre","mettre",
+"vite","lentement","bien","mal","ici","là","hier","aujourd'hui","demain","souvent",
+"jamais","toujours","parfois","beaucoup","peu","trop","assez","très","juste","ensemble",
+"fort","faible","heureux","triste","content","fâché","propre","sale","jeune","vieux",
+"grandir","dormir","lire","écrire","chanter","marcher","courir","travailler","écouter","regarder"
+];
+
+let motActuel="";
+let historique=[];
+
+function ouvrirApp(){ document.getElementById("menu").classList.add("hidden"); document.getElementById("app").classList.remove("hidden"); }
+function retourMenu(){ document.getElementById("app").classList.add("hidden"); document.getElementById("historiqueScreen").classList.add("hidden"); document.getElementById("menu").classList.remove("hidden"); }
+function ouvrirHistorique(){ document.getElementById("app").classList.add("hidden"); document.getElementById("historiqueScreen").classList.remove("hidden"); afficherHistorique(); }
+function retourGenerateur(){ document.getElementById("historiqueScreen").classList.add("hidden"); document.getElementById("app").classList.remove("hidden"); }
+
+function notifier(message,couleur="#00c9ff"){
+    const container=document.getElementById("notifications");
+    const notif=document.createElement("div");
+    notif.classList.add("notification");
+    notif.style.background=couleur;
+    notif.textContent=message;
+    container.appendChild(notif);
+    setTimeout(()=>{ notif.classList.add("fadeOut"); setTimeout(()=> notif.remove(),500); },3000);
+}
+
+function genererMot(){
+    if(listeMotsFrancais.length===0){ notifier("Liste vide !","#ff9a9e"); return; }
+    const random=Math.floor(Math.random()*listeMotsFrancais.length);
+    motActuel=listeMotsFrancais[random];
+    const motElement=document.getElementById("mot");
+    motElement.classList.remove("show");
+    setTimeout(()=>{ motElement.textContent=motActuel; motElement.classList.add("show"); },100);
+    historique.unshift(motActuel);
+    notifier("Nouveau mot généré ✨");
+}
+
+function copierMot(){ 
+    if(motActuel){ 
+        navigator.clipboard.writeText(motActuel); 
+        notifier("Mot copié 📋","#ff9a9e"); 
+    } 
+}
+
+function afficherHistorique(){
+    const container=document.getElementById("listeHistorique");
+    container.innerHTML="";
+    if(historique.length===0) container.textContent="Aucun mot généré pour l'instant.";
+    else{
+        historique.forEach((mot,i)=>{
+            const p=document.createElement("p");
+            p.textContent=`${i+1}. ${mot} `;
+            const btn = document.createElement("button");
+            btn.textContent="Supprimer";
+            btn.classList.add("delete-btn");
+            btn.onclick=()=>{ historique.splice(i,1); afficherHistorique(); notifier("Mot supprimé"); };
+            p.appendChild(btn);
+            container.appendChild(p);
+        });
+    }
+}
+
+function viderHistorique(){
+    historique=[];
+    afficherHistorique();
+    notifier("Historique vidé 🗑️","#ff4c4c");
+}
+</script>
+
+</body>
+</html>
